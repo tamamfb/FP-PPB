@@ -15,6 +15,7 @@ dependencies:
   provider: ^6.1.2
   google_fonts: ^6.2.1
   cached_network_image: ^3.3.1
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
