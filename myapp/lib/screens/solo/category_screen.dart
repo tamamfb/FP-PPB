@@ -27,7 +27,7 @@ class CategoryScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Teammate B sedang menyiapkan ini...',
+              'coming soon...',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
