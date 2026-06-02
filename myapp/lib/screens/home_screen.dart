@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../services/auth_service.dart'; // 👈 1. IMPORT SERVICE AUTHENTICATION MILIKMU
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,9 +18,43 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('TriLearn'),
         actions: [
+          // 👈 2. PASANG FUNGSI LOGOUT PADA TOMBOL SETTINGS BAWAAN ORANG A
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: null,
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: Colors.red,
+            ), // Mengganti ikon ke logout agar user tahu fungsinya
+            onPressed: () async {
+              // Tampilkan dialog konfirmasi kecil sebelum keluar (Opsional tapi lebih rapi)
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Keluar'),
+                  content: const Text(
+                    'Apakah kamu yakin ingin keluar dari TriLearn?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        'Keluar',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await AuthService().signOut(); // Panggil fungsi logout mesinmu
+                // GoRouter di main.dart akan otomatis mendeteksi perubahan state menjadi null
+                // dan langsung menendang user kembali ke halaman /login secara otomatis.
+              }
+            },
           ),
         ],
       ),
@@ -72,7 +107,9 @@ class _UserGreeting extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final name = user?.displayName;
     final photoURL = user?.photoURL as String?;
-    final initial = (name != null && name.isNotEmpty) ? name[0].toUpperCase() : '?';
+    final initial = (name != null && name.isNotEmpty)
+        ? name[0].toUpperCase()
+        : '?';
 
     return Row(
       children: [
@@ -100,7 +137,9 @@ class _UserGreeting extends StatelessWidget {
           children: [
             Text(
               name != null ? 'Halo, $name!' : 'Halo!',
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Text(
               'Siap belajar hari ini?',
@@ -157,25 +196,26 @@ class _ModeCard extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                   ],
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
               ),
             ],
           ),
@@ -224,7 +264,9 @@ class _DailyChallengeBanner extends StatelessWidget {
                 Chip(
                   label: const Text('Coming Soon'),
                   backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  labelStyle: textTheme.bodySmall?.copyWith(color: Colors.white),
+                  labelStyle: textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                  ),
                   padding: EdgeInsets.zero,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
