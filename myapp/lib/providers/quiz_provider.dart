@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/question_model.dart';
 import '../models/quiz_session.dart';
@@ -61,6 +62,18 @@ class QuizProvider extends ChangeNotifier {
   List<String?> _selectedAnswers = [];
   String? _errorMessage;
 
+  // ── Timer ────────────────────────────────────────────────────────────────
+  Timer? _timer;
+  static const int secondsPerQuestion = 15;
+  int _timeLeft = secondsPerQuestion;
+
+  // ── Scoring & streak (Week 2 B) ──────────────────────────────────────────
+  // Base 100 pts per correct + up to 50 speed bonus based on time remaining.
+  int _totalPoints = 0;
+  List<int> _pointsPerQuestion = [];
+  int _streak = 0;
+  int _maxStreak = 0;
+
   QuizStatus get status => _status;
   QuizSession? get session => _session;
   List<QuestionModel> get questions => List.unmodifiable(_questions);
@@ -68,6 +81,11 @@ class QuizProvider extends ChangeNotifier {
   int get score => _score;
   List<String?> get selectedAnswers => List.unmodifiable(_selectedAnswers);
   String? get errorMessage => _errorMessage;
+  int get timeLeft => _timeLeft;
+  int get totalPoints => _totalPoints;
+  int get streak => _streak;
+  int get maxStreak => _maxStreak;
+  List<int> get pointsPerQuestion => List.unmodifiable(_pointsPerQuestion);
 
   QuestionModel? get currentQuestion =>
       _questions.isNotEmpty ? _questions[_currentIndex] : null;
@@ -75,10 +93,42 @@ class QuizProvider extends ChangeNotifier {
   bool get isLastQuestion =>
       _questions.isNotEmpty && _currentIndex == _questions.length - 1;
 
+  // ── Timer management ─────────────────────────────────────────────────────
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timeLeft = secondsPerQuestion;
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      _timeLeft--;
+      if (_timeLeft <= 0) {
+        _timeLeft = 0;
+        t.cancel();
+        _onTimeout();
+        return;
+      }
+      notifyListeners();
+    });
+  }
+
+  void _onTimeout() {
+    if (_selectedAnswers[_currentIndex] != null) return;
+    // Empty string = timeout marker; no answer matches it so no red highlight.
+    _selectedAnswers[_currentIndex] = '';
+    _streak = 0;
+    _pointsPerQuestion.add(0);
+    notifyListeners();
+  }
+
+  // ── Quiz lifecycle ───────────────────────────────────────────────────────
+
   Future<void> startQuiz(QuizSession session) async {
     _status = QuizStatus.loading;
     _session = session;
     _errorMessage = null;
+    _totalPoints = 0;
+    _pointsPerQuestion = [];
+    _streak = 0;
+    _maxStreak = 0;
     notifyListeners();
 
     try {
@@ -92,6 +142,7 @@ class QuizProvider extends ChangeNotifier {
       _score = 0;
       _selectedAnswers = List.filled(_questions.length, null);
       _status = QuizStatus.active;
+      _startTimer();
     } on TriviaException catch (e) {
       _errorMessage = e.message;
       _status = QuizStatus.error;
@@ -103,14 +154,25 @@ class QuizProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Records the answer and updates the score. Does nothing if already answered.
+  // Records the answer, stops the timer, and calculates points with speed bonus.
   void answerQuestion(String answer) {
     if (_status != QuizStatus.active) return;
     if (_selectedAnswers[_currentIndex] != null) return;
 
+    _timer?.cancel();
     _selectedAnswers[_currentIndex] = answer;
+
     if (answer == _questions[_currentIndex].correctAnswer) {
       _score++;
+      _streak++;
+      if (_streak > _maxStreak) _maxStreak = _streak;
+      // Speed bonus: proportional to time remaining (max +50 pts).
+      final speedBonus = (50 * _timeLeft / secondsPerQuestion).floor();
+      _totalPoints += 100 + speedBonus;
+      _pointsPerQuestion.add(100 + speedBonus);
+    } else {
+      _streak = 0;
+      _pointsPerQuestion.add(0);
     }
     notifyListeners();
   }
@@ -120,14 +182,18 @@ class QuizProvider extends ChangeNotifier {
     if (_selectedAnswers[_currentIndex] == null) return;
 
     if (isLastQuestion) {
+      _timer?.cancel();
       _status = QuizStatus.finished;
     } else {
       _currentIndex++;
+      _startTimer();
     }
     notifyListeners();
   }
 
   void reset() {
+    _timer?.cancel();
+    _timer = null;
     _status = QuizStatus.idle;
     _session = null;
     _questions = [];
@@ -135,6 +201,11 @@ class QuizProvider extends ChangeNotifier {
     _score = 0;
     _selectedAnswers = [];
     _errorMessage = null;
+    _timeLeft = secondsPerQuestion;
+    _totalPoints = 0;
+    _pointsPerQuestion = [];
+    _streak = 0;
+    _maxStreak = 0;
     notifyListeners();
   }
 }

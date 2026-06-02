@@ -25,6 +25,14 @@ class QuizScreen extends StatelessWidget {
   }
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+Color _timerColor(int timeLeft) {
+  if (timeLeft > 10) return Colors.green;
+  if (timeLeft > 5) return Colors.orange;
+  return Colors.red;
+}
+
 // ── Loading ────────────────────────────────────────────────────────────────
 
 class _LoadingView extends StatelessWidget {
@@ -49,8 +57,10 @@ class _ActiveView extends StatelessWidget {
     final question = quiz.currentQuestion!;
     final selectedAnswer = quiz.selectedAnswers[quiz.currentIndex];
     final answered = selectedAnswer != null;
+    final timedOut = selectedAnswer == '';
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final timerColor = _timerColor(quiz.timeLeft);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,22 +74,93 @@ class _ActiveView extends StatelessWidget {
       ),
       body: Column(
         children: [
+          // Question progress bar
           LinearProgressIndicator(
             value: (quiz.currentIndex + 1) / quiz.questions.length,
+            minHeight: 3,
           ),
+          // Timer bar
+          LinearProgressIndicator(
+            value: quiz.timeLeft / QuizProvider.secondsPerQuestion,
+            minHeight: 6,
+            backgroundColor: colorScheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation(timerColor),
+          ),
+          // Info row: soal counter | streak | timer
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              children: [
+                Text(
+                  'Soal ${quiz.currentIndex + 1} / ${quiz.questions.length}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const Spacer(),
+                if (quiz.streak >= 2) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '🔥 ${quiz.streak}x',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Icon(Icons.timer_rounded, size: 14, color: timerColor),
+                const SizedBox(width: 3),
+                Text(
+                  '${quiz.timeLeft}s',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: timerColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Soal ${quiz.currentIndex + 1} / ${quiz.questions.length}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  // "Time's up!" banner
+                  if (timedOut)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.orange.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer_off_rounded,
+                              color: Colors.orange, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Waktu habis! Ini jawaban yang benar.',
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: Colors.orange),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
                   Text(
                     question.question,
                     style: textTheme.titleMedium
@@ -91,8 +172,7 @@ class _ActiveView extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _AnswerCard(
                         answer: answer,
-                        isCorrect:
-                            answered && answer == question.correctAnswer,
+                        isCorrect: answered && answer == question.correctAnswer,
                         isWrong: answered &&
                             answer == selectedAnswer &&
                             answer != question.correctAnswer,
@@ -102,7 +182,7 @@ class _ActiveView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 80), // space for the button
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
@@ -217,11 +297,12 @@ class _FinishedView extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 16),
               Icon(icon, size: 72, color: colorScheme.primary),
               const SizedBox(height: 16),
               Text(
@@ -243,7 +324,58 @@ class _FinishedView extends StatelessWidget {
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 28),
+              // Stats card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _StatRow(
+                      icon: Icons.star_rounded,
+                      iconColor: Colors.amber,
+                      label: 'Total Poin',
+                      value: '${quiz.totalPoints} pts',
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(height: 1),
+                    ),
+                    _StatRow(
+                      icon: Icons.auto_awesome_rounded,
+                      iconColor: colorScheme.primary,
+                      label: 'XP Didapat',
+                      value: '+${quiz.totalPoints} XP',
+                      valueStyle: textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(height: 1),
+                    ),
+                    _StatRow(
+                      icon: Icons.local_fire_department_rounded,
+                      iconColor: Colors.orange,
+                      label: 'Streak Terbaik',
+                      value: quiz.maxStreak > 0
+                          ? '${quiz.maxStreak}x beruntun'
+                          : '-',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -269,6 +401,41 @@ class _FinishedView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _StatRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final TextStyle? valueStyle;
+
+  const _StatRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    this.valueStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 10),
+        Text(label, style: textTheme.bodyMedium),
+        const Spacer(),
+        Text(
+          value,
+          style: valueStyle ??
+              textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }
