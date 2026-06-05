@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class MultiMenuScreen extends StatelessWidget {
   const MultiMenuScreen({super.key});
@@ -8,6 +9,7 @@ class MultiMenuScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Multiplayer'),
+        leading: BackButton(onPressed: () => context.go('/')),
       ),
       body: Center(
         child: Column(

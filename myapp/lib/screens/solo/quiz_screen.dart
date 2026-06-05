@@ -27,10 +27,11 @@ class QuizScreen extends StatelessWidget {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-Color _timerColor(int timeLeft) {
-  if (timeLeft > 10) return Colors.green;
-  if (timeLeft > 5) return Colors.orange;
-  return Colors.red;
+Color _timerColor(double value) {
+  if (value > 0.5) {
+    return Color.lerp(Colors.yellow, Colors.green, (value - 0.5) * 2)!;
+  }
+  return Color.lerp(Colors.red, Colors.yellow, value * 2)!;
 }
 
 // ── Loading ────────────────────────────────────────────────────────────────
@@ -60,7 +61,6 @@ class _ActiveView extends StatelessWidget {
     final timedOut = selectedAnswer == '';
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final timerColor = _timerColor(quiz.timeLeft);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,14 +79,7 @@ class _ActiveView extends StatelessWidget {
             value: (quiz.currentIndex + 1) / quiz.questions.length,
             minHeight: 3,
           ),
-          // Timer bar
-          LinearProgressIndicator(
-            value: quiz.timeLeft / QuizProvider.secondsPerQuestion,
-            minHeight: 6,
-            backgroundColor: colorScheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation(timerColor),
-          ),
-          // Info row: soal counter | streak | timer
+          // Info row: soal counter | score | streak
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
@@ -98,10 +91,31 @@ class _ActiveView extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 12, color: colorScheme.primary),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${quiz.totalPoints} pts',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 if (quiz.streak >= 2) ...[
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -114,17 +128,7 @@ class _ActiveView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
                 ],
-                Icon(Icons.timer_rounded, size: 14, color: timerColor),
-                const SizedBox(width: 3),
-                Text(
-                  '${quiz.timeLeft}s',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: timerColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ],
             ),
           ),
@@ -189,20 +193,20 @@ class _ActiveView extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: answered
-          ? Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                MediaQuery.of(context).padding.bottom + 16,
-              ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (answered)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: FilledButton(
                 onPressed: quiz.nextQuestion,
                 child: Text(quiz.isLastQuestion ? 'Selesai' : 'Selanjutnya'),
               ),
-            )
-          : null,
+            ),
+          _TimerBar(quiz: quiz),
+        ],
+      ),
     );
   }
 }
@@ -270,6 +274,145 @@ class _AnswerCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Timer bar ─────────────────────────────────────────────────────────────
+
+class _TimerBar extends StatefulWidget {
+  final QuizProvider quiz;
+  const _TimerBar({required this.quiz});
+
+  @override
+  State<_TimerBar> createState() => _TimerBarState();
+}
+
+class _TimerBarState extends State<_TimerBar> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  int _lastIndex = 0;
+  bool _lastAnswered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: QuizProvider.secondsPerQuestion),
+    );
+    _lastIndex = widget.quiz.currentIndex;
+    _controller.reverse(from: 1.0);
+  }
+
+  @override
+  void didUpdateWidget(_TimerBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final idx = widget.quiz.currentIndex;
+    final answered = idx < widget.quiz.selectedAnswers.length &&
+        widget.quiz.selectedAnswers[idx] != null;
+
+    if (idx != _lastIndex) {
+      _lastIndex = idx;
+      _lastAnswered = false;
+      _controller.reverse(from: 1.0);
+    } else if (answered && !_lastAnswered) {
+      _lastAnswered = true;
+      final timedOut = widget.quiz.selectedAnswers[idx] == '';
+      if (timedOut) {
+        _controller.value = 0;
+      } else {
+        _controller.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final value = _controller.value;
+        final seconds = (value * QuizProvider.secondsPerQuestion).ceil();
+        final barColor = _timerColor(value);
+
+        const double labelWidth = 36;
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad + 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final labelLeft = constraints.maxWidth * value - labelWidth - 4;
+
+                return SizedBox(
+                  height: 32,
+                  child: Stack(
+                    children: [
+                      // Background track
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                      // Animated fill, clipped to bar shape
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: value,
+                              heightFactor: 1,
+                              child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: barColor,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Label rides the right edge of the fill, exits left
+                      Positioned(
+                        left: labelLeft,
+                        top: 0,
+                        bottom: 0,
+                        width: labelWidth,
+                        child: Center(
+                          child: Text(
+                            '${seconds}s',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

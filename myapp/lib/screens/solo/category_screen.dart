@@ -148,7 +148,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
         max > 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pilih Kategori')),
+      appBar: AppBar(
+        title: const Text('Pilih Kategori'),
+        leading: BackButton(onPressed: () => context.go('/')),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
