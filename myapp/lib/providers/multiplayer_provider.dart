@@ -34,6 +34,11 @@ class MultiplayerProvider extends ChangeNotifier {
   Timer? _countdownTimer;
   int _timeLeftMs = MultiplayerService.timeLimitMs;
 
+  // Incremented each time _startCountdown fires with a confirmed timestamp.
+  // Used as QuizTimerBar's resetKey so the bar only restarts when the server
+  // time is actually known (avoids the host's pending-write snapshot problem).
+  int _questionKey = 0;
+
   // Guards against double-triggering intermission
   bool _intermissionTriggered = false;
   // Guards against submitting a blank answer more than once per question
@@ -51,8 +56,8 @@ class MultiplayerProvider extends ChangeNotifier {
   bool get isHost => _room != null && _room!.hostId == _myUid;
 
   int get timeLeftMs => _timeLeftMs;
-  int get timeLeftSeconds =>
-      (_timeLeftMs / 1000).ceil().clamp(0, 15);
+  int get timeLeftSeconds => (_timeLeftMs / 1000).ceil().clamp(0, 15);
+  int get questionKey => _questionKey;
 
   List<MultiplayerPlayer> get leaderboard =>
       (List.of(_players)..sort((a, b) => b.score.compareTo(a.score)));
@@ -162,6 +167,13 @@ class MultiplayerProvider extends ChangeNotifier {
 
     _playersSub = _service.playersStream(roomCode).listen(
       _onPlayersChanged,
+      onError: (_) {
+        // Stream died (e.g. Firestore permission denied). Resubscribe once so
+        // a transient error doesn't permanently freeze the player list.
+        Future.delayed(const Duration(seconds: 2), () {
+          if (_room != null) _subscribeToRoom(roomCode);
+        });
+      },
     );
   }
 
@@ -180,13 +192,22 @@ class MultiplayerProvider extends ChangeNotifier {
         _status =
             answered ? MultiplayerStatus.answered : MultiplayerStatus.active;
 
-        // Restart countdown whenever the question changes or the game just started
         final questionChanged =
             prevRoom?.currentQuestionIndex != room.currentQuestionIndex ||
                 prevRoom?.status != RoomStatus.active;
-        if (questionChanged && room.questionStartTime != null) {
+
+        // Reset per-question guards only when the question actually changed.
+        if (questionChanged) {
           _intermissionTriggered = false;
           _hasAutoSubmitted = false;
+        }
+
+        // Start countdown when the question changes OR when the server
+        // timestamp finally resolves (first event may deliver null).
+        final timestampResolved =
+            prevRoom?.questionStartTime == null && room.questionStartTime != null;
+        if ((questionChanged || timestampResolved) &&
+            room.questionStartTime != null) {
           _startCountdown(room.questionStartTime!);
         }
 
@@ -228,14 +249,22 @@ class MultiplayerProvider extends ChangeNotifier {
 
   void _startCountdown(DateTime questionStartTime) {
     _countdownTimer?.cancel();
-    _timeLeftMs = MultiplayerService.timeLimitMs;
+    _questionKey++;
+
+    // Helper — milliseconds elapsed since the question started on the server.
+    int msElapsed() =>
+        DateTime.now().difference(questionStartTime).inMilliseconds;
+
+    // Compute the actual remaining time immediately so the timer bar
+    // initialises from the correct server-relative position on first render,
+    // including for players who arrive late due to lag.
+    _timeLeftMs =
+        (MultiplayerService.timeLimitMs - msElapsed()).clamp(0, MultiplayerService.timeLimitMs).toInt();
 
     _countdownTimer =
         Timer.periodic(const Duration(milliseconds: 100), (_) {
-      final elapsed =
-          DateTime.now().difference(questionStartTime).inMilliseconds;
-      _timeLeftMs = (MultiplayerService.timeLimitMs - elapsed)
-          .clamp(0, MultiplayerService.timeLimitMs);
+      _timeLeftMs =
+          (MultiplayerService.timeLimitMs - msElapsed()).clamp(0, MultiplayerService.timeLimitMs).toInt();
 
       if (_timeLeftMs == 0) {
         _countdownTimer?.cancel();
@@ -383,6 +412,7 @@ class MultiplayerProvider extends ChangeNotifier {
     _myUid = null;
     _error = null;
     _timeLeftMs = MultiplayerService.timeLimitMs;
+    _questionKey = 0;
     _intermissionTriggered = false;
     _hasAutoSubmitted = false;
     _countdownTimer = null;

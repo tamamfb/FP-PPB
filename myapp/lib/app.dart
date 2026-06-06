@@ -11,7 +11,9 @@ import 'screens/home_screen.dart';
 import 'screens/solo/category_screen.dart';
 import 'screens/solo/quiz_screen.dart';
 import 'screens/multiplayer/multi_menu_screen.dart';
-import 'screens/multiplayer/lobby_screen.dart';
+import 'screens/multiplayer/multi_create_screen.dart';
+import 'screens/multiplayer/multi_join_screen.dart';
+import 'screens/multiplayer/multi_game_screen.dart';
 import 'theme/app_theme.dart';
 
 class MyApp extends StatelessWidget {
@@ -69,14 +71,20 @@ class MyApp extends StatelessWidget {
                 builder: (context, state) => const QuizScreen(),
               ),
               GoRoute(
-                name: 'multiMenu',
                 path: '/multi',
                 builder: (context, state) => const MultiMenuScreen(),
               ),
               GoRoute(
-                name: 'lobby',
-                path: '/multi/lobby',
-                builder: (context, state) => const LobbyScreen(),
+                path: '/multi/create',
+                builder: (context, state) => const MultiCreateScreen(),
+              ),
+              GoRoute(
+                path: '/multi/join',
+                builder: (context, state) => const MultiJoinScreen(),
+              ),
+              GoRoute(
+                path: '/multi/game',
+                builder: (context, state) => const MultiGameScreen(),
               ),
             ],
           );

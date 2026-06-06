@@ -46,12 +46,20 @@ class MultiplayerService {
   }
 
   Stream<List<MultiplayerPlayer>> playersStream(String roomCode) {
-    return _playersRef(roomCode)
-        .orderBy('joinedAt')
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => MultiplayerPlayer.fromFirestore(d.id, d.data()))
-            .toList());
+    return _playersRef(roomCode).snapshots().map((snap) {
+      final players = <MultiplayerPlayer>[];
+      for (final doc in snap.docs) {
+        try {
+          players.add(MultiplayerPlayer.fromFirestore(doc.id, doc.data()));
+        } catch (_) {
+          // Skip malformed documents so one bad entry can't crash the stream.
+        }
+      }
+      // Sort client-side so documents with a pending server timestamp
+      // (joinedAt == null → falls back to DateTime.now()) are still included.
+      players.sort((a, b) => a.joinedAt.compareTo(b.joinedAt));
+      return players;
+    });
   }
 
   // ── Room code generation ──────────────────────────────────────────────────

@@ -25,7 +25,7 @@ class MultiplayerPlayer {
       String uid, Map<String, dynamic> data) {
     return MultiplayerPlayer(
       uid: uid,
-      displayName: data['displayName'] as String,
+      displayName: (data['displayName'] as String?) ?? '',
       score: data['score'] as int? ?? 0,
       streak: data['streak'] as int? ?? 0,
       hasAnswered: data['hasAnswered'] as bool? ?? false,

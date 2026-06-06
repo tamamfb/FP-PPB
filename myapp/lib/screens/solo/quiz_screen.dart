@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/quiz_provider.dart';
+import '../../widgets/answer_card.dart';
+import '../../widgets/quiz_timer_bar.dart';
 
 class QuizScreen extends StatelessWidget {
   const QuizScreen({super.key});
@@ -23,15 +25,6 @@ class QuizScreen extends StatelessWidget {
       },
     );
   }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-Color _timerColor(double value) {
-  if (value > 0.5) {
-    return Color.lerp(Colors.yellow, Colors.green, (value - 0.5) * 2)!;
-  }
-  return Color.lerp(Colors.red, Colors.yellow, value * 2)!;
 }
 
 // ── Loading ────────────────────────────────────────────────────────────────
@@ -174,7 +167,7 @@ class _ActiveView extends StatelessWidget {
                   ...question.allAnswers.map(
                     (answer) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _AnswerCard(
+                      child: AnswerCard(
                         answer: answer,
                         isCorrect: answered && answer == question.correctAnswer,
                         isWrong: answered &&
@@ -204,215 +197,14 @@ class _ActiveView extends StatelessWidget {
                 child: Text(quiz.isLastQuestion ? 'Selesai' : 'Selanjutnya'),
               ),
             ),
-          _TimerBar(quiz: quiz),
+          QuizTimerBar(
+            totalSeconds: QuizProvider.secondsPerQuestion,
+            stopped: answered,
+            snapToZero: timedOut,
+            resetKey: quiz.currentIndex,
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _AnswerCard extends StatelessWidget {
-  final String answer;
-  final bool isCorrect;
-  final bool isWrong;
-  final VoidCallback? onTap;
-
-  const _AnswerCard({
-    required this.answer,
-    required this.isCorrect,
-    required this.isWrong,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final Color borderColor;
-    final Color? bgColor;
-    final Widget? trailing;
-
-    if (isCorrect) {
-      borderColor = Colors.green;
-      bgColor = Colors.green.withValues(alpha: 0.12);
-      trailing = const Icon(Icons.check_circle_rounded, color: Colors.green);
-    } else if (isWrong) {
-      borderColor = colorScheme.error;
-      bgColor = colorScheme.error.withValues(alpha: 0.12);
-      trailing = Icon(Icons.cancel_rounded, color: colorScheme.error);
-    } else {
-      borderColor = colorScheme.outline.withValues(alpha: 0.4);
-      bgColor = null;
-      trailing = null;
-    }
-
-    return Material(
-      color: bgColor ?? Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  answer,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing,
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Timer bar ─────────────────────────────────────────────────────────────
-
-class _TimerBar extends StatefulWidget {
-  final QuizProvider quiz;
-  const _TimerBar({required this.quiz});
-
-  @override
-  State<_TimerBar> createState() => _TimerBarState();
-}
-
-class _TimerBarState extends State<_TimerBar> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  int _lastIndex = 0;
-  bool _lastAnswered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: QuizProvider.secondsPerQuestion),
-    );
-    _lastIndex = widget.quiz.currentIndex;
-    _controller.reverse(from: 1.0);
-  }
-
-  @override
-  void didUpdateWidget(_TimerBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final idx = widget.quiz.currentIndex;
-    final answered = idx < widget.quiz.selectedAnswers.length &&
-        widget.quiz.selectedAnswers[idx] != null;
-
-    if (idx != _lastIndex) {
-      _lastIndex = idx;
-      _lastAnswered = false;
-      _controller.reverse(from: 1.0);
-    } else if (answered && !_lastAnswered) {
-      _lastAnswered = true;
-      final timedOut = widget.quiz.selectedAnswers[idx] == '';
-      if (timedOut) {
-        _controller.value = 0;
-      } else {
-        _controller.stop();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final value = _controller.value;
-        final seconds = (value * QuizProvider.secondsPerQuestion).ceil();
-        final barColor = _timerColor(value);
-
-        const double labelWidth = 36;
-
-        return Padding(
-          padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPad + 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final labelLeft = constraints.maxWidth * value - labelWidth - 4;
-
-                return SizedBox(
-                  height: 32,
-                  child: Stack(
-                    children: [
-                      // Background track
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                      // Animated fill, clipped to bar shape
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: value,
-                              heightFactor: 1,
-                              child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: barColor,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Label rides the right edge of the fill, exits left
-                      Positioned(
-                        left: labelLeft,
-                        top: 0,
-                        bottom: 0,
-                        width: labelWidth,
-                        child: Center(
-                          child: Text(
-                            '${seconds}s',
-                            style: textTheme.labelMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
     );
   }
 }
