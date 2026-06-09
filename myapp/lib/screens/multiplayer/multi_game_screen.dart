@@ -480,6 +480,11 @@ class _QuizView extends StatelessWidget {
               ],
             ),
           ),
+          // Mini scoreboard — live ranking selama soal aktif
+          _MiniScoreboard(
+            players: mp.leaderboard,
+            myUid: mp.myPlayer?.uid,
+          ),
           const Divider(height: 1),
           Expanded(
             child: SingleChildScrollView(
@@ -549,6 +554,81 @@ class _QuizView extends StatelessWidget {
         startFrom: mp.timeLeftMs / MultiplayerService.timeLimitMs,
         stopped: false,
         resetKey: mp.questionKey,
+      ),
+    );
+  }
+}
+
+// ── Mini scoreboard ───────────────────────────────────────────────────────
+
+class _MiniScoreboard extends StatelessWidget {
+  final List<MultiplayerPlayer> players;
+  final String? myUid;
+
+  const _MiniScoreboard({required this.players, required this.myUid});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    if (players.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        itemCount: players.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final player = players[i];
+          final isMe = player.uid == myUid;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+            decoration: BoxDecoration(
+              color: isMe
+                  ? colorScheme.primary.withValues(alpha: 0.12)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(20),
+              border: isMe
+                  ? Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.35))
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${i + 1}.',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.45),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  player.displayName.length > 8
+                      ? '${player.displayName.substring(0, 7)}…'
+                      : player.displayName,
+                  style: textTheme.labelMedium?.copyWith(
+                    fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+                    color: isMe ? colorScheme.primary : null,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '${player.score}',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: isMe
+                        ? colorScheme.primary
+                        : colorScheme.onSurface.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -756,41 +836,58 @@ class _IntermissionViewState extends State<_IntermissionView>
               },
             ),
           ),
-          // Host action
+          // Auto-advance countdown + host skip button
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, bottomPad + 16),
-            child: mp.isHost
-                ? SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: mp.advanceToNext,
-                      child: Text(mp.isLastQuestion
-                          ? 'Lihat Hasil Akhir'
-                          : 'Pertanyaan Berikutnya'),
+            padding: EdgeInsets.fromLTRB(20, 4, 20, bottomPad + 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Countdown bar (visible to all)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: MultiplayerProvider.intermissionSeconds > 0
+                        ? mp.intermissionCountdown /
+                            MultiplayerProvider.intermissionSeconds
+                        : 0,
+                    minHeight: 4,
+                    backgroundColor:
+                        colorScheme.surfaceContainerHighest,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (mp.isHost)
+                  FilledButton(
+                    onPressed: mp.advanceToNext,
+                    child: Text(
+                      mp.isLastQuestion
+                          ? 'Lihat Hasil Akhir (${mp.intermissionCountdown}s)'
+                          : 'Lanjut Sekarang (${mp.intermissionCountdown}s)',
                     ),
                   )
-                : Row(
+                else
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colorScheme.onSurface
-                              .withValues(alpha: 0.4),
-                        ),
+                      Icon(
+                        Icons.hourglass_top_rounded,
+                        size: 14,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 6),
                       Text(
-                        'Menunggu host...',
+                        mp.isLastQuestion
+                            ? 'Hasil akhir dalam ${mp.intermissionCountdown}s...'
+                            : 'Soal berikutnya dalam ${mp.intermissionCountdown}s...',
                         style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
                   ),
+              ],
+            ),
           ),
         ],
       ),

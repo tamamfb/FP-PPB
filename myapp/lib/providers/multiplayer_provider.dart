@@ -44,6 +44,12 @@ class MultiplayerProvider extends ChangeNotifier {
   // Guards against submitting a blank answer more than once per question
   bool _hasAutoSubmitted = false;
 
+  // Intermission auto-advance
+  static const int intermissionSeconds = 5;
+  Timer? _intermissionTimer;
+  int _intermissionCountdown = 0;
+  bool _autoAdvanceStarted = false;
+
   StreamSubscription<MultiplayerRoom?>? _roomSub;
   StreamSubscription<List<MultiplayerPlayer>>? _playersSub;
 
@@ -58,6 +64,7 @@ class MultiplayerProvider extends ChangeNotifier {
   int get timeLeftMs => _timeLeftMs;
   int get timeLeftSeconds => (_timeLeftMs / 1000).ceil().clamp(0, 15);
   int get questionKey => _questionKey;
+  int get intermissionCountdown => _intermissionCountdown;
 
   List<MultiplayerPlayer> get leaderboard =>
       (List.of(_players)..sort((a, b) => b.score.compareTo(a.score)));
@@ -188,6 +195,7 @@ class MultiplayerProvider extends ChangeNotifier {
         _status = MultiplayerStatus.lobby;
 
       case RoomStatus.active:
+        _intermissionTimer?.cancel();
         final answered = myPlayer?.hasAnswered ?? false;
         _status =
             answered ? MultiplayerStatus.answered : MultiplayerStatus.active;
@@ -200,6 +208,7 @@ class MultiplayerProvider extends ChangeNotifier {
         if (questionChanged) {
           _intermissionTriggered = false;
           _hasAutoSubmitted = false;
+          _autoAdvanceStarted = false;
         }
 
         // Start countdown when the question changes OR when the server
@@ -214,6 +223,10 @@ class MultiplayerProvider extends ChangeNotifier {
       case RoomStatus.intermission:
         _countdownTimer?.cancel();
         _status = MultiplayerStatus.intermission;
+        if (!_autoAdvanceStarted) {
+          _autoAdvanceStarted = true;
+          _startIntermissionCountdown();
+        }
 
       case RoomStatus.finished:
         _countdownTimer?.cancel();
@@ -272,6 +285,22 @@ class MultiplayerProvider extends ChangeNotifier {
       }
 
       notifyListeners();
+    });
+  }
+
+  // Runs on every device. Host is the only one who actually calls advanceToNext.
+  void _startIntermissionCountdown() {
+    _intermissionTimer?.cancel();
+    _intermissionCountdown = intermissionSeconds;
+    _intermissionTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_intermissionCountdown > 0) {
+        _intermissionCountdown--;
+        notifyListeners();
+      }
+      if (_intermissionCountdown <= 0) {
+        t.cancel();
+        if (isHost) advanceToNext();
+      }
     });
   }
 
@@ -403,6 +432,7 @@ class MultiplayerProvider extends ChangeNotifier {
 
   void reset() {
     _countdownTimer?.cancel();
+    _intermissionTimer?.cancel();
     _roomSub?.cancel();
     _playersSub?.cancel();
 
@@ -415,7 +445,10 @@ class MultiplayerProvider extends ChangeNotifier {
     _questionKey = 0;
     _intermissionTriggered = false;
     _hasAutoSubmitted = false;
+    _autoAdvanceStarted = false;
+    _intermissionCountdown = 0;
     _countdownTimer = null;
+    _intermissionTimer = null;
     _roomSub = null;
     _playersSub = null;
 
@@ -425,6 +458,7 @@ class MultiplayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _intermissionTimer?.cancel();
     _roomSub?.cancel();
     _playersSub?.cancel();
     super.dispose();
