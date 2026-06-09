@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/quiz_provider.dart';
+import '../../widgets/answer_card.dart';
+import '../../widgets/quiz_timer_bar.dart';
 
 class QuizScreen extends StatelessWidget {
   const QuizScreen({super.key});
@@ -23,14 +25,6 @@ class QuizScreen extends StatelessWidget {
       },
     );
   }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-Color _timerColor(int timeLeft) {
-  if (timeLeft > 10) return Colors.green;
-  if (timeLeft > 5) return Colors.orange;
-  return Colors.red;
 }
 
 // ── Loading ────────────────────────────────────────────────────────────────
@@ -60,7 +54,6 @@ class _ActiveView extends StatelessWidget {
     final timedOut = selectedAnswer == '';
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final timerColor = _timerColor(quiz.timeLeft);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,14 +72,7 @@ class _ActiveView extends StatelessWidget {
             value: (quiz.currentIndex + 1) / quiz.questions.length,
             minHeight: 3,
           ),
-          // Timer bar
-          LinearProgressIndicator(
-            value: quiz.timeLeft / QuizProvider.secondsPerQuestion,
-            minHeight: 6,
-            backgroundColor: colorScheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation(timerColor),
-          ),
-          // Info row: soal counter | streak | timer
+          // Info row: soal counter | score | streak
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
@@ -98,10 +84,31 @@ class _ActiveView extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 12, color: colorScheme.primary),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${quiz.totalPoints} pts',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 if (quiz.streak >= 2) ...[
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -114,17 +121,7 @@ class _ActiveView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
                 ],
-                Icon(Icons.timer_rounded, size: 14, color: timerColor),
-                const SizedBox(width: 3),
-                Text(
-                  '${quiz.timeLeft}s',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: timerColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ],
             ),
           ),
@@ -170,7 +167,7 @@ class _ActiveView extends StatelessWidget {
                   ...question.allAnswers.map(
                     (answer) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _AnswerCard(
+                      child: AnswerCard(
                         answer: answer,
                         isCorrect: answered && answer == question.correctAnswer,
                         isWrong: answered &&
@@ -189,86 +186,24 @@ class _ActiveView extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: answered
-          ? Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                MediaQuery.of(context).padding.bottom + 16,
-              ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (answered)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
               child: FilledButton(
                 onPressed: quiz.nextQuestion,
                 child: Text(quiz.isLastQuestion ? 'Selesai' : 'Selanjutnya'),
               ),
-            )
-          : null,
-    );
-  }
-}
-
-class _AnswerCard extends StatelessWidget {
-  final String answer;
-  final bool isCorrect;
-  final bool isWrong;
-  final VoidCallback? onTap;
-
-  const _AnswerCard({
-    required this.answer,
-    required this.isCorrect,
-    required this.isWrong,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final Color borderColor;
-    final Color? bgColor;
-    final Widget? trailing;
-
-    if (isCorrect) {
-      borderColor = Colors.green;
-      bgColor = Colors.green.withValues(alpha: 0.12);
-      trailing = const Icon(Icons.check_circle_rounded, color: Colors.green);
-    } else if (isWrong) {
-      borderColor = colorScheme.error;
-      bgColor = colorScheme.error.withValues(alpha: 0.12);
-      trailing = Icon(Icons.cancel_rounded, color: colorScheme.error);
-    } else {
-      borderColor = colorScheme.outline.withValues(alpha: 0.4);
-      bgColor = null;
-      trailing = null;
-    }
-
-    return Material(
-      color: bgColor ?? Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(12),
+            ),
+          QuizTimerBar(
+            totalSeconds: QuizProvider.secondsPerQuestion,
+            stopped: answered,
+            snapToZero: timedOut,
+            resetKey: quiz.currentIndex,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  answer,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing,
-              ],
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

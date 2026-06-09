@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class LobbyScreen extends StatelessWidget {
   const LobbyScreen({super.key});
@@ -8,6 +9,7 @@ class LobbyScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lobby'),
+        leading: BackButton(onPressed: () => context.go('/multi')),
       ),
       body: Center(
         child: Column(

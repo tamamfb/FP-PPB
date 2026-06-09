@@ -38,6 +38,28 @@ class QuestionModel {
     );
   }
 
+  Map<String, dynamic> toMap() => {
+        'category': category,
+        'type': type,
+        'difficulty': difficulty,
+        'question': question,
+        'correctAnswer': correctAnswer,
+        'incorrectAnswers': incorrectAnswers,
+        'allAnswers': allAnswers,
+      };
+
+  factory QuestionModel.fromMap(Map<String, dynamic> map) {
+    return QuestionModel(
+      category: map['category'] as String,
+      type: map['type'] as String,
+      difficulty: map['difficulty'] as String,
+      question: map['question'] as String,
+      correctAnswer: map['correctAnswer'] as String,
+      incorrectAnswers: List<String>.from(map['incorrectAnswers'] as List),
+      allAnswers: List<String>.from(map['allAnswers'] as List),
+    );
+  }
+
   static String _decodeHtml(String text) {
     return text
         .replaceAll('&amp;', '&')

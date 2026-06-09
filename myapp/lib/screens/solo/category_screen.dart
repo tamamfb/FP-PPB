@@ -148,7 +148,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
         max > 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pilih Kategori')),
+      appBar: AppBar(
+        title: const Text('Pilih Kategori'),
+        leading: BackButton(onPressed: () => context.go('/')),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
@@ -324,6 +327,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         selected: _selectedDifficulty == e.key,
                         onSelected:
                             enabled ? (_) => _selectDifficulty(e.key, quiz) : null,
+                        showCheckmark: false,
                       );
                     }).toList(),
                   ),
@@ -342,6 +346,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   label: Text(e.value),
                   selected: _selectedType == e.key,
                   onSelected: (_) => setState(() => _selectedType = e.key),
+                  showCheckmark: false,
                 );
               }).toList(),
             ),
@@ -361,6 +366,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   label: Text('$p'),
                   selected: _amount == p,
                   onSelected: enabled ? (_) => setState(() => _amount = p) : null,
+                  showCheckmark: false,
                 );
               }).toList(),
             ),
