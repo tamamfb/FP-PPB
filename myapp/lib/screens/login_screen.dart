@@ -10,49 +10,80 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
 
-  Future<void> _handleLogin() async {
-    final email = _emailController.text.trim();
+  bool _isLoading = false;
+  bool _isRegister = false;
+
+  Future<void> _handleAuth() async {
+    final emailOrUsername = _emailController.text.trim();
+    final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (emailOrUsername.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan Password tidak boleh kosong!')),
+        const SnackBar(
+          content: Text('Email/Username dan Password tidak boleh kosong!'),
+        ),
+      );
+      return;
+    }
+
+    if (_isRegister && username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Username wajib diisi saat register!')),
       );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    try {
-      final user = await AuthService().signInWithEmail(email, password);
+    String? result;
 
-      if (user != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Selamat datang kembali, ${user.displayName}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+    if (_isRegister) {
+      result = await AuthService().register(
+        email: emailOrUsername,
+        password: password,
+        username: username,
+      );
+    } else {
+      result = await AuthService().login(
+        logininput: emailOrUsername,
+        password: password,
+      );
+    }
+
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isRegister ? 'Register berhasil!' : 'Login berhasil!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      if (_isRegister) {
+        setState(() => _isRegister = false);
+        _usernameController.clear();
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal masuk: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -67,9 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 80),
+
               Container(
                 width: 100,
                 height: 100,
@@ -83,7 +114,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.white,
                 ),
               ),
+
               const SizedBox(height: 24),
+
               Text(
                 'TriLearn',
                 style: textTheme.displaySmall?.copyWith(
@@ -91,21 +124,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: colorScheme.primary,
                 ),
               ),
+
               const SizedBox(height: 40),
 
-              // Input Email
+              /// EMAIL / USERNAME
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email / Username',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
-                keyboardType: TextInputType.emailAddress,
               ),
+
               const SizedBox(height: 16),
 
-              // Input Password
+              /// USERNAME (ONLY REGISTER)
+              if (_isRegister)
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                ),
+
+              if (_isRegister) const SizedBox(height: 16),
+
+              /// PASSWORD
               TextField(
                 controller: _passwordController,
                 decoration: const InputDecoration(
@@ -115,16 +162,54 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 obscureText: true,
               ),
-              const SizedBox(height: 24),
 
-              // Tombol Login / Loading State
+              const SizedBox(height: 20),
+
+              /// TOGGLE BUTTON
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => setState(() => _isRegister = false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: !_isRegister
+                            ? colorScheme.primary
+                            : Colors.grey[300],
+                        foregroundColor: !_isRegister
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                      child: const Text('Login'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => setState(() => _isRegister = true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isRegister
+                            ? colorScheme.primary
+                            : Colors.grey[300],
+                        foregroundColor: _isRegister
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                      child: const Text('Register'),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              /// BUTTON ACTION
               _isLoading
                   ? const CircularProgressIndicator()
                   : SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _handleLogin,
+                        onPressed: _handleAuth,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colorScheme.primary,
                           foregroundColor: Colors.white,
@@ -132,9 +217,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Masuk atau Daftar',
-                          style: TextStyle(
+                        child: Text(
+                          _isRegister ? 'Daftar' : 'Masuk',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -143,8 +228,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
               const SizedBox(height: 40),
+
               Text(
-                '*Jika email belum terdaftar, sistem akan otomatis membuatkan akun baru.',
+                '*Gunakan Email atau Username untuk login',
                 style: textTheme.bodySmall?.copyWith(color: Colors.grey),
                 textAlign: TextAlign.center,
               ),

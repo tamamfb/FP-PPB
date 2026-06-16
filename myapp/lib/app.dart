@@ -15,6 +15,7 @@ import 'screens/multiplayer/multi_create_screen.dart';
 import 'screens/multiplayer/multi_join_screen.dart';
 import 'screens/multiplayer/multi_game_screen.dart';
 import 'theme/app_theme.dart';
+import 'screens/profile_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -59,6 +60,10 @@ class MyApp extends StatelessWidget {
               GoRoute(
                 path: '/login',
                 builder: (context, state) => const LoginScreen(),
+              ),
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
               ),
               GoRoute(
                 name: 'category',

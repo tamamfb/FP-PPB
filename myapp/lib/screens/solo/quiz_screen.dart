@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/quiz_provider.dart';
 import '../../widgets/answer_card.dart';
 import '../../widgets/quiz_timer_bar.dart';
+import '../../providers/user_provider.dart';
 
 class QuizScreen extends StatelessWidget {
   const QuizScreen({super.key});
@@ -17,11 +18,11 @@ class QuizScreen extends StatelessWidget {
         if (didPop) quiz.reset();
       },
       child: switch (quiz.status) {
-        QuizStatus.loading  => const _LoadingView(),
-        QuizStatus.active   => _ActiveView(quiz: quiz),
+        QuizStatus.loading => const _LoadingView(),
+        QuizStatus.active => _ActiveView(quiz: quiz),
         QuizStatus.finished => _FinishedView(quiz: quiz),
-        QuizStatus.error    => _ErrorView(quiz: quiz),
-        QuizStatus.idle     => const _LoadingView(),
+        QuizStatus.error => _ErrorView(quiz: quiz),
+        QuizStatus.idle => const _LoadingView(),
       },
     );
   }
@@ -34,9 +35,7 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -85,7 +84,10 @@ class _ActiveView extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -93,7 +95,11 @@ class _ActiveView extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.star_rounded, size: 12, color: colorScheme.primary),
+                      Icon(
+                        Icons.star_rounded,
+                        size: 12,
+                        color: colorScheme.primary,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         '${quiz.totalPoints} pts',
@@ -108,7 +114,10 @@ class _ActiveView extends StatelessWidget {
                 if (quiz.streak >= 2) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -137,31 +146,39 @@ class _ActiveView extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
                         color: Colors.orange.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: Colors.orange.withValues(alpha: 0.4)),
+                          color: Colors.orange.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.timer_off_rounded,
-                              color: Colors.orange, size: 18),
+                          const Icon(
+                            Icons.timer_off_rounded,
+                            color: Colors.orange,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Waktu habis! Ini jawaban yang benar.',
-                            style: textTheme.bodySmall
-                                ?.copyWith(color: Colors.orange),
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Colors.orange,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   Text(
                     question.question,
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ...question.allAnswers.map(
@@ -170,7 +187,8 @@ class _ActiveView extends StatelessWidget {
                       child: AnswerCard(
                         answer: answer,
                         isCorrect: answered && answer == question.correctAnswer,
-                        isWrong: answered &&
+                        isWrong:
+                            answered &&
                             answer == selectedAnswer &&
                             answer != question.correctAnswer,
                         onTap: answered
@@ -227,8 +245,18 @@ class _FinishedView extends StatelessWidget {
       >= 80 => (Icons.emoji_events_rounded, 'Luar Biasa!'),
       >= 60 => (Icons.thumb_up_rounded, 'Bagus!'),
       >= 40 => (Icons.sentiment_neutral_rounded, 'Lumayan!'),
-      _     => (Icons.menu_book_rounded, 'Terus Belajar!'),
+      _ => (Icons.menu_book_rounded, 'Terus Belajar!'),
     };
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = context.read<UserProvider>();
+
+      userProvider.simpanHasilKuisSolo(
+        skorAkhir: quiz.totalPoints,
+        jumlahBenar: quiz.score,
+        totalSoal: quiz.questions.length,
+      );
+    });
 
     return Scaffold(
       body: SafeArea(
@@ -242,8 +270,9 @@ class _FinishedView extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 label,
-                style: textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               Text(
@@ -264,10 +293,13 @@ class _FinishedView extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 16),
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: colorScheme.outline.withValues(alpha: 0.2),
@@ -367,7 +399,8 @@ class _StatRow extends StatelessWidget {
         const Spacer(),
         Text(
           value,
-          style: valueStyle ??
+          style:
+              valueStyle ??
               textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
@@ -393,8 +426,11 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline_rounded,
-                  size: 64, color: colorScheme.error),
+              Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: colorScheme.error,
+              ),
               const SizedBox(height: 16),
               Text(
                 quiz.errorMessage ?? 'Terjadi kesalahan.',

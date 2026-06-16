@@ -10,6 +10,12 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<UserProvider>();
+      if (provider.user == null) {
+        provider.fetchCurrentUser();
+      }
+    });
     final user = context.watch<UserProvider>().user;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -18,6 +24,12 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('TriLearn'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person, color: Colors.blue),
+            onPressed: () {
+              context.go('/profile');
+            },
+          ),
           // 👈 2. PASANG FUNGSI LOGOUT PADA TOMBOL SETTINGS BAWAAN ORANG A
           IconButton(
             icon: const Icon(
@@ -50,7 +62,7 @@ class HomeScreen extends StatelessWidget {
               );
 
               if (confirm == true) {
-                await AuthService().signOut(); // Panggil fungsi logout mesinmu
+                await AuthService().logout(); // Panggil fungsi logout mesinmu
                 // GoRouter di main.dart akan otomatis mendeteksi perubahan state menjadi null
                 // dan langsung menendang user kembali ke halaman /login secara otomatis.
               }
