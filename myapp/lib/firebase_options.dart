@@ -57,26 +57,24 @@ class DefaultFirebaseOptions {
     projectId: 'trilearn-ca5f3',
     storageBucket: 'trilearn-ca5f3.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyA-40nMG6lQKhgo2kQqCQolOTiEd1c5qfg',
     appId: '1:1004947994145:ios:534a4cdcf16d81b9665560',
     messagingSenderId: '1004947994145',
     projectId: 'trilearn-ca5f3',
     storageBucket: 'trilearn-ca5f3.firebasestorage.app',
-    iosClientId:
-        '1004947994145-7pcenjp2fs867s0c1um72510qeu77nj2.apps.googleusercontent.com',
+    androidClientId: '1004947994145-j0hr6gkohtcm1dpupjmnuqqmk6dgleii.apps.googleusercontent.com',
+    iosClientId: '1004947994145-7pcenjp2fs867s0c1um72510qeu77nj2.apps.googleusercontent.com',
     iosBundleId: 'com.example.myapp',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyA-40nMG6lQKhgo2kQqCQolOTiEd1c5qfg',
     appId: '1:1004947994145:ios:534a4cdcf16d81b9665560',
     messagingSenderId: '1004947994145',
     projectId: 'trilearn-ca5f3',
     storageBucket: 'trilearn-ca5f3.firebasestorage.app',
-    iosClientId:
-        '1004947994145-7pcenjp2fs867s0c1um72510qeu77nj2.apps.googleusercontent.com',
+    androidClientId: '1004947994145-j0hr6gkohtcm1dpupjmnuqqmk6dgleii.apps.googleusercontent.com',
+    iosClientId: '1004947994145-7pcenjp2fs867s0c1um72510qeu77nj2.apps.googleusercontent.com',
     iosBundleId: 'com.example.myapp',
   );
 

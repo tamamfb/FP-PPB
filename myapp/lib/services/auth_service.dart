@@ -1,160 +1,138 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // =========================
-  // 1. AUTH STATE STREAM
-  // =========================
+  User? get currentUser => _auth.currentUser;
+
   Stream<UserModel?> get authStateChanges {
-    return _auth.authStateChanges().map((User? user) {
-      if (user == null) return null;
+    return _auth.authStateChanges().map((User? firebaseUser) {
+      if (firebaseUser == null) return null;
 
+      // Sesuaikan dengan parameter required yang ada di UserModel kamu
       return UserModel(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? user.email!.split('@')[0],
-        photoURL: user.photoURL ?? '',
+        uid: firebaseUser.uid,
+        username: firebaseUser.displayName?.toLowerCase() ?? 'user',
+        displayName: firebaseUser.displayName ?? 'User Baru',
+        email: firebaseUser.email ?? '',
+        totalXp: 0, // Nilai default awal saat stream inisialisasi
+        totalGames: 0, // Nilai default awal saat stream inisialisasi
       );
     });
   }
 
-  // =========================
-  // 2. LOGIN EMAIL & PASSWORD
-  // =========================
-  Future<UserModel?> signInWithEmail(String email, String password) async {
+  /// ==========================
+  /// REGISTER
+  /// ==========================
+  Future<String?> register({
+    required String email,
+    required String password,
+    required String username,
+  }) async {
     try {
-      final UserCredential userCredential = await _auth
-          .signInWithEmailAndPassword(email: email, password: password);
+      username = username.trim().toLowerCase();
 
-      final User? user = userCredential.user;
+      /// cek username duplicate
+      final usernameCheck = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get();
+
+      if (usernameCheck.docs.isNotEmpty) {
+        return 'Username sudah digunakan, silakan cari nama lain.';
+      }
+
+      /// create auth
+      UserCredential credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      User? user = credential.user;
 
       if (user != null) {
-        await _saveOrUpdateUser(user);
-
-        return UserModel(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName ?? email.split('@')[0],
-          photoURL: user.photoURL ?? '',
-        );
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'username': username,
+          'displayName': username,
+          'email': email.trim(),
+          'photoURL': null,
+          'total_xp': 0,
+          'total_games': 0,
+          'created_at': Timestamp.now(),
+        });
       }
 
       return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' ||
-          e.code == 'invalid-credential' ||
-          e.code == 'wrong-password') {
-        return await _registerWithEmail(email, password);
+      switch (e.code) {
+        case 'email-already-in-use':
+          return 'Email sudah dipakai';
+
+        case 'weak-password':
+          return 'Password terlalu lemah';
+
+        case 'invalid-email':
+          return 'Email tidak valid';
+
+        default:
+          return e.message;
       }
-      rethrow;
     } catch (e) {
-      debugPrint("Error Auth Email: $e");
-      rethrow;
+      return e.toString();
     }
   }
 
-  // =========================
-  // 3. REGISTER EMAIL (AUTO)
-  // =========================
-  Future<UserModel?> _registerWithEmail(String email, String password) async {
+  /// ==========================
+  /// LOGIN EMAIL / USERNAME
+  /// ==========================
+  Future<String?> login({
+    required String logininput,
+    required String password,
+  }) async {
     try {
-      final UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      String email = logininput.trim();
 
-      final User? user = userCredential.user;
+      /// login via username
+      if (!email.contains('@')) {
+        final result = await _firestore
+            .collection('users')
+            .where('username', isEqualTo: logininput.trim().toLowerCase())
+            .limit(1)
+            .get();
 
-      if (user != null) {
-        await _saveOrUpdateUser(user);
+        if (result.docs.isEmpty) {
+          return 'Username tidak ditemukan';
+        }
 
-        return UserModel(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: email.split('@')[0],
-          photoURL: '',
-        );
+        email = result.docs.first['email'];
       }
+
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
 
       return null;
-    } catch (e) {
-      debugPrint("Error Register Email: $e");
-      rethrow;
-    }
-  }
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-credential':
+          return 'Email/Password salah';
 
-  // =========================
-  // 4. GOOGLE SIGN IN
-  // =========================
-  Future<UserModel?> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        case 'user-not-found':
+          return 'User tidak ditemukan';
 
-      if (googleUser == null) return null; // user cancel
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
-
-      final User? user = userCredential.user;
-
-      if (user != null) {
-        await _saveOrUpdateUser(user);
-
-        return UserModel(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName ?? user.email!.split('@')[0],
-          photoURL: user.photoURL ?? '',
-        );
+        default:
+          return e.message;
       }
-
-      return null;
-    } catch (e) {
-      debugPrint("Error Google Sign-In: $e");
-      rethrow;
     }
   }
 
-  // =========================
-  // 5. SAVE / UPDATE FIRESTORE
-  // =========================
-  Future<void> _saveOrUpdateUser(User user) async {
-    final userRef = _db.collection('users').doc(user.uid);
-    final doc = await userRef.get();
-
-    if (!doc.exists) {
-      await userRef.set({
-        'uid': user.uid,
-        'displayName': user.displayName ?? user.email!.split('@')[0],
-        'email': user.email ?? '',
-        'photoURL': user.photoURL ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
-    } else {
-      await userRef.update({'lastLogin': FieldValue.serverTimestamp()});
-    }
-  }
-
-  // =========================
-  // 6. LOGOUT
-  // =========================
-  Future<void> signOut() async {
-    await _googleSignIn.signOut();
+  /// ==========================
+  /// LOGOUT
+  /// ==========================
+  Future<void> logout() async {
     await _auth.signOut();
   }
 }
