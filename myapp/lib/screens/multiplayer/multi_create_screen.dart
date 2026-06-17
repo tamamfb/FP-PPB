@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../../models/quiz_session.dart';
 import '../../models/trivia_category.dart';
 import '../../models/user_model.dart';
+import '../../providers/friend_provider.dart';
 import '../../providers/multiplayer_provider.dart';
 import '../../providers/quiz_provider.dart';
+import '../../providers/user_provider.dart';
 
 class MultiCreateScreen extends StatefulWidget {
-  const MultiCreateScreen({super.key});
+  final String? challengeTargetUid;
+  const MultiCreateScreen({super.key, this.challengeTargetUid});
 
   @override
   State<MultiCreateScreen> createState() => _MultiCreateScreenState();
@@ -21,6 +24,14 @@ class _MultiCreateScreenState extends State<MultiCreateScreen> {
   String _type = 'any';
   int _amount = 10;
   bool _loading = false;
+  final _displayNameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController.text =
+        context.read<UserProvider>().user?.displayName ?? '';
+  }
 
   @override
   void didChangeDependencies() {
@@ -30,6 +41,7 @@ class _MultiCreateScreenState extends State<MultiCreateScreen> {
 
   @override
   void dispose() {
+    _displayNameController.dispose();
     context.read<QuizProvider>().clearCategoryCount();
     super.dispose();
   }
@@ -38,29 +50,51 @@ class _MultiCreateScreenState extends State<MultiCreateScreen> {
     final user = context.read<UserModel?>();
     if (user == null) return;
 
+    final sessionDisplayName = _displayNameController.text.trim();
+    if (sessionDisplayName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama tampilan tidak boleh kosong.')),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
 
+    final session = QuizSession(
+      categoryId: _categoryId,
+      categoryName: _categoryName,
+      difficulty: _difficulty,
+      type: _type,
+      amount: _amount,
+    );
+
     final mp = context.read<MultiplayerProvider>();
-    await mp.createRoom(
+    final code = await mp.createRoom(
       uid: user.uid,
-      displayName: user.displayName,
-      settings: QuizSession(
-        categoryId: _categoryId,
-        categoryName: _categoryName,
-        difficulty: _difficulty,
-        type: _type,
-        amount: _amount,
-      ),
+      displayName: sessionDisplayName,
+      settings: session,
     );
 
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (mp.status == MultiplayerStatus.error) {
+    if (mp.status == MultiplayerStatus.error || code == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(mp.error ?? 'Gagal membuat room.')),
       );
     } else {
+      if (widget.challengeTargetUid != null) {
+        final me = context.read<UserProvider>().user;
+        if (me != null) {
+          await context.read<FriendProvider>().sendChallenge(
+                me: me,
+                targetUid: widget.challengeTargetUid!,
+                roomCode: code,
+                roomSettings: session.toMap(),
+              );
+        }
+      }
+      if (!mounted) return;
       context.go('/multi/game');
     }
   }
@@ -71,10 +105,24 @@ class _MultiCreateScreenState extends State<MultiCreateScreen> {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Buat Room')),
+      appBar: AppBar(
+        title: Text(widget.challengeTargetUid != null
+            ? 'Tantang Bermain'
+            : 'Buat Room'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         children: [
+          _SectionLabel('Nama Tampilan'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _displayNameController,
+            decoration: const InputDecoration(
+              hintText: 'Nama kamu di room ini',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 24),
           _SectionLabel('Kategori'),
           const SizedBox(height: 8),
           quiz.isLoadingCategories
@@ -140,7 +188,9 @@ class _MultiCreateScreenState extends State<MultiCreateScreen> {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Buat Room'),
+              : Text(widget.challengeTargetUid != null
+                    ? 'Tantang!'
+                    : 'Buat Room'),
         ),
       ),
     );

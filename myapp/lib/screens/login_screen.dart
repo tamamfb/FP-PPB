@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _isRegister = false;
+  bool _obscurePassword = true;
 
   Future<void> _handleAuth() async {
     final emailOrUsername = _emailController.text.trim();
@@ -130,6 +131,11 @@ class _LoginScreenState extends State<LoginScreen> {
               /// EMAIL / USERNAME
               TextField(
                 controller: _emailController,
+                keyboardType: _isRegister
+                    ? TextInputType.emailAddress
+                    : TextInputType.text,
+                autocorrect: false,
+                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Email / Username',
                   border: OutlineInputBorder(),
@@ -143,6 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
               if (_isRegister)
                 TextField(
                   controller: _usernameController,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(),
@@ -155,12 +163,25 @@ class _LoginScreenState extends State<LoginScreen> {
               /// PASSWORD
               TextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                obscureText: _obscurePassword,
+                autocorrect: false,
+                enableSuggestions: false,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _isLoading ? null : _handleAuth(),
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_outline),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
-                obscureText: true,
               ),
 
               const SizedBox(height: 20),
@@ -203,29 +224,39 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
 
               /// BUTTON ACTION
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _handleAuth,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleAuth,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        colorScheme.primary.withValues(alpha: 0.6),
+                    disabledForegroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
                           ),
-                        ),
-                        child: Text(
+                        )
+                      : Text(
                           _isRegister ? 'Daftar' : 'Masuk',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                    ),
+                ),
+              ),
 
               const SizedBox(height: 40),
 

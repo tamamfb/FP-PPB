@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../models/multiplayer_player.dart';
 import '../../providers/multiplayer_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../services/multiplayer_service.dart';
 import '../../widgets/answer_card.dart';
 import '../../widgets/quiz_timer_bar.dart';
@@ -897,12 +898,29 @@ class _IntermissionViewState extends State<_IntermissionView>
 
 // ── Final ─────────────────────────────────────────────────────────────────
 
-class _FinalView extends StatelessWidget {
+class _FinalView extends StatefulWidget {
   final MultiplayerProvider mp;
   const _FinalView({required this.mp});
 
   @override
+  State<_FinalView> createState() => _FinalViewState();
+}
+
+class _FinalViewState extends State<_FinalView> {
+  @override
+  void initState() {
+    super.initState();
+    final score = widget.mp.myPlayer?.score ?? 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<UserProvider>().simpanHasilMultiplayer(score: score);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mp = widget.mp;
     final leaderboard = mp.leaderboard;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;

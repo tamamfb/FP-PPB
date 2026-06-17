@@ -16,6 +16,15 @@ import 'screens/multiplayer/multi_join_screen.dart';
 import 'screens/multiplayer/multi_game_screen.dart';
 import 'theme/app_theme.dart';
 import 'screens/profile_screen.dart';
+import 'screens/game_detail_screen.dart';
+import 'screens/daily_challenge_screen.dart';
+import 'screens/friends/friends_screen.dart';
+import 'screens/friends/friend_search_screen.dart';
+import 'screens/friends/friend_profile_screen.dart';
+import 'screens/friends/notifications_screen.dart';
+import 'screens/friends/challenge_invitation_screen.dart';
+import 'models/notification_model.dart';
+import 'providers/friend_provider.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -36,6 +45,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<MultiplayerProvider>(
           create: (context) => MultiplayerProvider(),
+        ),
+        ChangeNotifierProvider<FriendProvider>(
+          create: (context) => FriendProvider(),
         ),
       ],
       child: Builder(
@@ -66,6 +78,12 @@ class MyApp extends StatelessWidget {
                 builder: (context, state) => const ProfileScreen(),
               ),
               GoRoute(
+                path: '/profile/history',
+                builder: (context, state) => GameDetailScreen(
+                  data: state.extra as Map<String, dynamic>,
+                ),
+              ),
+              GoRoute(
                 name: 'category',
                 path: '/solo/category',
                 builder: (context, state) => const CategoryScreen(),
@@ -76,16 +94,48 @@ class MyApp extends StatelessWidget {
                 builder: (context, state) => const QuizScreen(),
               ),
               GoRoute(
+                path: '/daily',
+                builder: (context, state) => const DailyChallengeScreen(),
+              ),
+              GoRoute(
+                path: '/friends',
+                builder: (context, state) => const FriendsScreen(),
+              ),
+              GoRoute(
+                path: '/friends/search',
+                builder: (context, state) => const FriendSearchScreen(),
+              ),
+              GoRoute(
+                path: '/friends/profile/:uid',
+                builder: (context, state) => FriendProfileScreen(
+                  uid: state.pathParameters['uid']!,
+                ),
+              ),
+              GoRoute(
+                path: '/notifications',
+                builder: (context, state) => const NotificationsScreen(),
+              ),
+              GoRoute(
                 path: '/multi',
                 builder: (context, state) => const MultiMenuScreen(),
               ),
               GoRoute(
                 path: '/multi/create',
-                builder: (context, state) => const MultiCreateScreen(),
+                builder: (context, state) => MultiCreateScreen(
+                  challengeTargetUid: state.extra as String?,
+                ),
+              ),
+              GoRoute(
+                path: '/challenge/invitation',
+                builder: (context, state) => ChallengeInvitationScreen(
+                  notif: state.extra as NotificationModel,
+                ),
               ),
               GoRoute(
                 path: '/multi/join',
-                builder: (context, state) => const MultiJoinScreen(),
+                builder: (context, state) => MultiJoinScreen(
+                  initialCode: state.extra as String?,
+                ),
               ),
               GoRoute(
                 path: '/multi/game',

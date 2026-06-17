@@ -95,7 +95,7 @@ class MultiplayerProvider extends ChangeNotifier {
 
   // ── Room creation ─────────────────────────────────────────────────────────
 
-  Future<void> createRoom({
+  Future<String?> createRoom({
     required String uid,
     required String displayName,
     required QuizSession settings,
@@ -112,10 +112,12 @@ class MultiplayerProvider extends ChangeNotifier {
         settings: settings,
       );
       _subscribeToRoom(code);
+      return code;
     } catch (_) {
       _error = 'Failed to create room. Please try again.';
       _status = MultiplayerStatus.error;
       notifyListeners();
+      return null;
     }
   }
 

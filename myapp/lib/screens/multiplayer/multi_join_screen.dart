@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
 import '../../providers/multiplayer_provider.dart';
+import '../../providers/user_provider.dart';
 
 class MultiJoinScreen extends StatefulWidget {
-  const MultiJoinScreen({super.key});
+  final String? initialCode;
+  const MultiJoinScreen({super.key, this.initialCode});
 
   @override
   State<MultiJoinScreen> createState() => _MultiJoinScreenState();
@@ -13,11 +15,25 @@ class MultiJoinScreen extends StatefulWidget {
 
 class _MultiJoinScreenState extends State<MultiJoinScreen> {
   final _controller = TextEditingController();
+  final _displayNameController = TextEditingController();
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController.text =
+        context.read<UserProvider>().user?.displayName ?? '';
+    if (widget.initialCode != null && widget.initialCode!.isNotEmpty) {
+      _controller.text = widget.initialCode!.toUpperCase();
+      // Auto-join when arriving from a challenge notification
+      WidgetsBinding.instance.addPostFrameCallback((_) => _join());
+    }
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
@@ -28,13 +44,21 @@ class _MultiJoinScreenState extends State<MultiJoinScreen> {
     final user = context.read<UserModel?>();
     if (user == null) return;
 
+    final sessionDisplayName = _displayNameController.text.trim();
+    if (sessionDisplayName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama tampilan tidak boleh kosong.')),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
 
     final mp = context.read<MultiplayerProvider>();
     await mp.joinRoom(
       roomCode: code,
       uid: user.uid,
-      displayName: user.displayName,
+      displayName: sessionDisplayName,
     );
 
     if (!mounted) return;
@@ -104,6 +128,21 @@ class _MultiJoinScreenState extends State<MultiJoinScreen> {
                 ),
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _join(),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _displayNameController,
+                decoration: InputDecoration(
+                  labelText: 'Nama Tampilan',
+                  hintText: 'Nama kamu di room ini',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
               ),
               // Error banner
               if (mp.status == MultiplayerStatus.error &&

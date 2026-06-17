@@ -6,6 +6,8 @@ class UserModel {
   final String? email;
   final int totalXp;
   final int totalGames;
+  final String? lastDailyDate;
+  final int lastDailyScore;
 
   const UserModel({
     required this.uid,
@@ -15,6 +17,8 @@ class UserModel {
     this.email,
     this.totalXp = 0,
     this.totalGames = 0,
+    this.lastDailyDate,
+    this.lastDailyScore = 0,
   });
 
   factory UserModel.fromFirestore(Map<String, dynamic> data) {
@@ -26,6 +30,8 @@ class UserModel {
       email: data['email'],
       totalXp: data['total_xp'] ?? 0,
       totalGames: data['total_games'] ?? 0,
+      lastDailyDate: data['lastDailyDate'],
+      lastDailyScore: data['lastDailyScore'] ?? 0,
     );
   }
 

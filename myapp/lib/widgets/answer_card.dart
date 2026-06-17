@@ -43,15 +43,26 @@ class AnswerCard extends StatelessWidget {
       trailing = null;
     }
 
+    final stateKey = isCorrect
+        ? 'correct'
+        : isWrong
+        ? 'wrong'
+        : isSelected
+        ? 'selected'
+        : 'none';
+
     return Material(
-      color: bgColor ?? Colors.transparent,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
+            color: bgColor ?? Colors.transparent,
             border: Border.all(color: borderColor),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -63,10 +74,16 @@ class AnswerCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing,
-              ],
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: trailing != null
+                    ? Padding(
+                        key: ValueKey(stateKey),
+                        padding: const EdgeInsets.only(left: 8),
+                        child: trailing,
+                      )
+                    : const SizedBox.shrink(key: ValueKey('none')),
+              ),
             ],
           ),
         ),

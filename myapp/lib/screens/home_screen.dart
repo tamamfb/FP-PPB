@@ -1,22 +1,20 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../providers/friend_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/auth_service.dart'; // 👈 1. IMPORT SERVICE AUTHENTICATION MILIKMU
+import '../utils/image_utils.dart';
+import '../utils/level_utils.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<UserProvider>();
-      if (provider.user == null) {
-        provider.fetchCurrentUser();
-      }
-    });
-    final user = context.watch<UserProvider>().user;
+    final provider = context.watch<UserProvider>();
+    final user = provider.user;
+    final isLoading = provider.isLoading;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -24,11 +22,45 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('TriLearn'),
         actions: [
+          Consumer<FriendProvider>(
+            builder: (context, fp, _) {
+              final count = fp.unreadCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () => context.push('/notifications'),
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.group_rounded),
+            onPressed: () => context.push('/friends'),
+          ),
           IconButton(
             icon: const Icon(Icons.person, color: Colors.blue),
-            onPressed: () {
-              context.go('/profile');
-            },
+            onPressed: () => context.push('/profile'),
           ),
           // 👈 2. PASANG FUNGSI LOGOUT PADA TOMBOL SETTINGS BAWAAN ORANG A
           IconButton(
@@ -75,7 +107,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _UserGreeting(user: user),
+            _UserGreeting(user: user, isLoading: isLoading),
             const SizedBox(height: 28),
             Text(
               'Pilih Mode Bermain',
@@ -100,7 +132,7 @@ class HomeScreen extends StatelessWidget {
               onTap: () => context.go('/multi'),
             ),
             const SizedBox(height: 28),
-            _DailyChallengeBanner(),
+            _DailyChallengeBanner(user: user),
           ],
         ),
       ),
@@ -110,15 +142,22 @@ class HomeScreen extends StatelessWidget {
 
 class _UserGreeting extends StatelessWidget {
   final dynamic user;
+  final bool isLoading;
 
-  const _UserGreeting({this.user});
+  const _UserGreeting({this.user, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
+    if (user == null && isLoading) {
+      return const _GreetingSkeleton();
+    }
+
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final name = user?.displayName;
     final photoURL = user?.photoURL as String?;
+    final totalXp = (user?.totalXp as int?) ?? 0;
+    final level = levelFromXp(totalXp);
     final initial = (name != null && name.isNotEmpty)
         ? name[0].toUpperCase()
         : '?';
@@ -128,7 +167,7 @@ class _UserGreeting extends StatelessWidget {
         if (photoURL != null && photoURL.isNotEmpty)
           CircleAvatar(
             radius: 28,
-            backgroundImage: CachedNetworkImageProvider(photoURL),
+            backgroundImage: photoImageProvider(photoURL),
           )
         else
           CircleAvatar(
@@ -147,16 +186,72 @@ class _UserGreeting extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              name != null ? 'Halo, $name!' : 'Halo!',
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Text(
+                  name != null ? 'Halo, $name!' : 'Halo!',
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Lv. $level',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
             Text(
               'Siap belajar hari ini?',
               style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _GreetingSkeleton extends StatelessWidget {
+  const _GreetingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+    return Row(
+      children: [
+        CircleAvatar(radius: 28, backgroundColor: color),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 140,
+              height: 20,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: 100,
+              height: 14,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
           ],
@@ -238,54 +333,67 @@ class _ModeCard extends StatelessWidget {
 }
 
 class _DailyChallengeBanner extends StatelessWidget {
-  const _DailyChallengeBanner();
+  final dynamic user;
+  const _DailyChallengeBanner({this.user});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colorScheme.primary.withValues(alpha: 0.8),
-            colorScheme.secondary.withValues(alpha: 0.8),
+    final now = DateTime.now();
+    final todayKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final done = user?.lastDailyDate == todayKey;
+
+    return GestureDetector(
+      onTap: () => context.push('/daily'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary.withValues(alpha: 0.8),
+              colorScheme.secondary.withValues(alpha: 0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              done ? Icons.check_circle_rounded : Icons.emoji_events_rounded,
+              color: Colors.white,
+              size: 36,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tantangan Hari Ini',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    done
+                        ? '+${user?.lastDailyScore ?? 0} XP • Selesai!'
+                        : '10 soal • XP 2×',
+                    style: textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 36),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tantangan Hari Ini',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Chip(
-                  label: const Text('Coming Soon'),
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  labelStyle: textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
-                  ),
-                  padding: EdgeInsets.zero,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

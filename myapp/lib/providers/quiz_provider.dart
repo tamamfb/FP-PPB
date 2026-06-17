@@ -154,6 +154,26 @@ class QuizProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Starts a quiz with a pre-fetched question list (skips the OpenTDB fetch).
+  Future<void> startQuizWithQuestions(List<QuestionModel> questions) async {
+    _status = QuizStatus.loading;
+    _session = null;
+    _errorMessage = null;
+    _totalPoints = 0;
+    _pointsPerQuestion = [];
+    _streak = 0;
+    _maxStreak = 0;
+    notifyListeners();
+
+    _questions = questions;
+    _currentIndex = 0;
+    _score = 0;
+    _selectedAnswers = List.filled(_questions.length, null);
+    _status = QuizStatus.active;
+    _startTimer();
+    notifyListeners();
+  }
+
   // Records the answer, stops the timer, and calculates points with speed bonus.
   void answerQuestion(String answer) {
     if (_status != QuizStatus.active) return;
