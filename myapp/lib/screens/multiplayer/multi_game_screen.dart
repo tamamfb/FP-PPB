@@ -7,6 +7,7 @@ import '../../providers/multiplayer_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/multiplayer_service.dart';
 import '../../widgets/answer_card.dart';
+import '../../widgets/invite_friends_sheet.dart';
 import '../../widgets/quiz_timer_bar.dart';
 
 class MultiGameScreen extends StatelessWidget {
@@ -257,6 +258,25 @@ class _LobbyView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => InviteFriendsSheet(
+                            roomCode: room.roomCode,
+                            roomSettings: room.settings.toMap(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.person_add_rounded, size: 18),
+                        label: const Text('Undang Teman'),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: colorScheme.primary.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       FilledButton.icon(
                         onPressed: mp.startGame,
                         icon: const Icon(Icons.play_arrow_rounded),

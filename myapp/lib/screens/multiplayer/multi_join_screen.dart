@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
@@ -39,7 +40,7 @@ class _MultiJoinScreenState extends State<MultiJoinScreen> {
 
   Future<void> _join() async {
     final code = _controller.text.trim().toUpperCase();
-    if (code.length != 6) return;
+    if (!RegExp(r'^[A-Z0-9]{6}$').hasMatch(code)) return;
 
     final user = context.read<UserModel?>();
     if (user == null) return;
@@ -126,6 +127,9 @@ class _MultiJoinScreenState extends State<MultiJoinScreen> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 20),
                 ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+                ],
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) => _join(),
               ),
@@ -177,8 +181,9 @@ class _MultiJoinScreenState extends State<MultiJoinScreen> {
               Padding(
                 padding: EdgeInsets.only(bottom: bottomPad + 8),
                 child: FilledButton(
-                  onPressed:
-                      (_loading || code.length != 6) ? null : _join,
+                  onPressed: (_loading || !RegExp(r'^[A-Z0-9]{6}$').hasMatch(code.toUpperCase()))
+                      ? null
+                      : _join,
                   child: _loading
                       ? const SizedBox(
                           height: 20,

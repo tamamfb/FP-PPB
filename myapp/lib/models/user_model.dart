@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   final String uid;
   final String displayName;
@@ -8,6 +10,7 @@ class UserModel {
   final int totalGames;
   final String? lastDailyDate;
   final int lastDailyScore;
+  final DateTime? lastSeen;
 
   const UserModel({
     required this.uid,
@@ -19,6 +22,7 @@ class UserModel {
     this.totalGames = 0,
     this.lastDailyDate,
     this.lastDailyScore = 0,
+    this.lastSeen,
   });
 
   factory UserModel.fromFirestore(Map<String, dynamic> data) {
@@ -32,6 +36,7 @@ class UserModel {
       totalGames: data['total_games'] ?? 0,
       lastDailyDate: data['lastDailyDate'],
       lastDailyScore: data['lastDailyScore'] ?? 0,
+      lastSeen: (data['lastSeen'] as Timestamp?)?.toDate(),
     );
   }
 

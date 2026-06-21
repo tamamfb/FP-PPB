@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -20,11 +22,18 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
   final _controller = TextEditingController();
   List<UserModel> _results = [];
   bool _searching = false;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () => _search(query));
   }
 
   Future<void> _search(String query) async {
@@ -73,7 +82,7 @@ class _FriendSearchScreenState extends State<FriendSearchScreen> {
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(horizontal: 4),
           ),
-          onChanged: _search,
+          onChanged: _onSearchChanged,
         ),
       ),
       body: _searching

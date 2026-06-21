@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/user_model.dart';
 
-class UserProvider extends ChangeNotifier {
+class UserProvider extends ChangeNotifier with WidgetsBindingObserver {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -18,6 +18,7 @@ class UserProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   UserProvider() {
+    WidgetsBinding.instance.addObserver(this);
     _authSubscription = _auth.authStateChanges().listen((firebaseUser) {
       if (firebaseUser != null) {
         fetchCurrentUser();
@@ -28,7 +29,25 @@ class UserProvider extends ChangeNotifier {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateLastSeen();
+    }
+  }
+
+  Future<void> _updateLastSeen() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'lastSeen': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSubscription?.cancel();
     super.dispose();
   }
@@ -55,17 +74,12 @@ class UserProvider extends ChangeNotifier {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
 
-        _user = UserModel(
-          uid: data['uid'] ?? '',
-          displayName: data['displayName'] ?? data['username'] ?? '',
-          username: data['username'] ?? '',
-          photoURL: data['photoURL'],
-          email: data['email'],
-          totalXp: data['total_xp'] ?? 0,
-          totalGames: data['total_games'] ?? 0,
-          lastDailyDate: data['lastDailyDate'],
-          lastDailyScore: data['lastDailyScore'] ?? 0,
-        );
+        _user = UserModel.fromFirestore(data);
+
+        // Stamp lastSeen so friends can see this user is online
+        _firestore.collection('users').doc(currentUser.uid).update({
+          'lastSeen': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
       }
 
       _isLoading = false;

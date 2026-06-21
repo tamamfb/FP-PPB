@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/friend_provider.dart';
 import '../providers/user_provider.dart';
-import '../services/auth_service.dart'; // 👈 1. IMPORT SERVICE AUTHENTICATION MILIKMU
+import '../services/auth_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/level_utils.dart';
 
@@ -62,14 +62,12 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.person, color: Colors.blue),
             onPressed: () => context.push('/profile'),
           ),
-          // 👈 2. PASANG FUNGSI LOGOUT PADA TOMBOL SETTINGS BAWAAN ORANG A
           IconButton(
             icon: const Icon(
               Icons.logout_rounded,
               color: Colors.red,
-            ), // Mengganti ikon ke logout agar user tahu fungsinya
+            ),
             onPressed: () async {
-              // Tampilkan dialog konfirmasi kecil sebelum keluar (Opsional tapi lebih rapi)
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -94,9 +92,7 @@ class HomeScreen extends StatelessWidget {
               );
 
               if (confirm == true) {
-                await AuthService().logout(); // Panggil fungsi logout mesinmu
-                // GoRouter di main.dart akan otomatis mendeteksi perubahan state menjadi null
-                // dan langsung menendang user kembali ke halaman /login secara otomatis.
+                await AuthService().logout();
               }
             },
           ),
